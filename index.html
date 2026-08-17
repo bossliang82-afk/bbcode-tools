@@ -215,4 +215,73 @@
         for(let i=0; i<3; i++) r.forEach(rule => h = h.replace(rule.re, rule.to));
         h = h.replace(/\n/g, '<br/>');
         
-        h = h.replace(/%%%CODE_BLOCK_(
+        h = h.replace(/%%%CODE_BLOCK_(\d+)%%%/g, function(match, index) {
+            let rawCode = codes[index];
+            let encodedCode = encodeURIComponent(rawCode);
+            let innerCode = rawCode.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+            
+            return `<div class="code-wrapper">
+                        <button class="copy-btn" onclick="copyCode(this, '${encodedCode}')">复制源码</button>
+                        <div class="code-block">${innerCode}</div>
+                    </div>`;
+        });
+
+        return h;
+    }
+
+    function update() { 
+        if(editor && preview) {
+            preview.innerHTML = parse(editor.value); 
+        }
+    }
+    
+    function loadEx(k) { 
+        if(editor && ex[k]) {
+            const rawData = ex[k];
+            preview.innerHTML = parse(rawData);
+            
+            // 完美剔除左边多余的源码框说明和源码块
+            let editorData = rawData.replace(/\[b\][^\]]*?源码[^\]]*?\[\/b\]\s*\[code\][\s\S]*?\[\/code\]/gi, '');
+            editorData = editorData.replace(/\[code\][\s\S]*?\[\/code\]/gi, '');
+            
+            editor.value = editorData.trim();
+            
+            document.querySelectorAll('.toolbar button').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.querySelector(`button[data-tab="${k}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+            
+            localStorage.setItem('bbcode_active_tab', k);
+        }
+    }
+    
+    if(editor) {
+        editor.addEventListener('input', update);
+        
+        const savedTab = localStorage.getItem('bbcode_active_tab') || 'basic';
+        loadEx(savedTab); 
+        
+        let isSyncingLeft = false;
+        let isSyncingRight = false;
+        
+        editor.addEventListener('scroll', function() {
+            if (!isSyncingLeft) {
+                isSyncingRight = true;
+                const percentage = this.scrollTop / (this.scrollHeight - this.clientHeight);
+                preview.scrollTop = percentage * (preview.scrollHeight - preview.clientHeight);
+            }
+            isSyncingLeft = false;
+        });
+
+        preview.addEventListener('scroll', function() {
+            if (!isSyncingRight) {
+                isSyncingLeft = true;
+                const percentage = this.scrollTop / (this.scrollHeight - this.clientHeight);
+                editor.scrollTop = percentage * (editor.scrollHeight - editor.clientHeight);
+            }
+            isSyncingRight = false;
+        });
+    }
+</script>
+</body>
+</html>
+
