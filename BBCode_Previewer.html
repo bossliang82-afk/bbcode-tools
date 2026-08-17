@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>BBCode 实时排版预览器</title>
+    <style>
+        body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; margin: 0; background: #f4f5f7; display: flex; flex-direction: column; height: 100vh; }
+        .header { background: #fff; padding: 15px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; z-index: 10; }
+        .header h1 { margin: 0; font-size: 20px; color: #333; }
+        .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+        button { background: #0078d4; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: background 0.2s; font-weight: bold; }
+        button:hover { background: #005a9e; }
+        button.fun-btn { background: #e3008c; }
+        button.fun-btn:hover { background: #c20076; }
+        button.novel-btn { background: #008080; }
+        button.novel-btn:hover { background: #006666; }
+        .main { display: flex; flex: 1; padding: 20px; gap: 20px; box-sizing: border-box; overflow: hidden; }
+        .panel { flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e1dfdd; overflow: hidden; }
+        .panel-header { padding: 10px 15px; background: #f8f8f8; border-bottom: 1px solid #e1dfdd; font-weight: bold; color: #555; font-size: 14px; }
+        textarea { flex: 1; border: none; padding: 15px; resize: none; font-family: 'Consolas', monospace; font-size: 14px; outline: none; line-height: 1.5; white-space: pre-wrap;}
+        #preview { flex: 1; padding: 15px; overflow-y: auto; color: #333; line-height: 1.6; }
+        
+        #preview blockquote { border-left: 4px solid #c8c8c8; margin: 10px 0; padding: 15px; background: #f3f2f1; color: #333; }
+        #preview details { border: 1px solid #e1dfdd; padding: 10px; margin: 10px 0; background: #fff; border-radius: 4px; }
+        #preview details summary { cursor: pointer; color: #0078d4; font-weight: bold; outline: none; margin-bottom: 5px; }
+        #preview img { max-width: 100%; border-radius: 4px; object-fit: contain; vertical-align: middle; }
+        #preview ruby { ruby-align: center; }
+        ::selection { background: #0078d4; color: #fff; }
+        
+        /* 源码块与一键复制按钮样式 */
+        .code-wrapper { position: relative; margin: 10px 0; }
+        .copy-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 5px 10px; font-size: 12px; cursor: pointer; border-radius: 4px; z-index: 2; transition: all 0.2s; font-family: 'Segoe UI', sans-serif;}
+        .copy-btn:hover { background: rgba(255,255,255,0.3); }
+        .code-block { background: #282c34; color: #abb2bf; padding: 35px 12px 12px 12px; border-radius: 6px; overflow-x: auto; font-family: 'Consolas', monospace; font-size: 13px; line-height: 1.5; border: 1px solid #1e2227; margin:0;}
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>✨ BBCode 实时预览与练习板</h1>
+    <div class="toolbar">
+        <button onclick="loadEx('basic')">基础语法与色号</button>
+        <button class="novel-btn" onclick="loadEx('novel_table_width')">📖 表格限宽法(防空行)</button>
+        <button class="novel-btn" onclick="loadEx('novel_advice')">📖 小说说明优化</button>
+        <button onclick="loadEx('card_classic')">经典名片</button>
+        <button onclick="loadEx('card_table')">图文名片</button>
+        <button class="fun-btn" onclick="loadEx('fun_all')">🎁 趣味排版大全</button>
+    </div>
+</div>
+
+<div class="main">
+    <div class="panel">
+        <div class="panel-header">📝 输入区 (在此自由编写 BBCode)</div>
+        <textarea id="editor"></textarea>
+    </div>
+    <div class="panel">
+        <div class="panel-header">👁️ 预览区 (实时效果)</div>
+        <div id="preview"></div>
+    </div>
+</div>
+
+<script>
+    // 复制功能
+    window.copyCode = function(btn, encodedText) {
+        const text = decodeURIComponent(encodedText);
+        navigator.clipboard.writeText(text).then(() => {
+            const oldText = btn.innerText;
+            btn.innerText = '✅ 已复制!';
+            btn.style.background = '#4CAF50';
+            btn.style.borderColor = '#4CAF50';
+            setTimeout(() => {
+                btn.innerText = '复制源码';
+                btn.style.background = 'rgba(255,255,255,0.15)';
+                btn.style.borderColor = 'rgba(255,255,255,0.3)';
+            }, 2000);
+        });
+    };
+
+    const ex = {
+        "basic": "[size=5][b]✨ 基础语法与色号字典[/b][/size]\n[hr]\n\n[size=4][b]📝 一、 文字排版与修饰[/b][/size]\n\n[b]▶ 【字体样式】[/b]\n[quote]\n[b]这是粗体文字[/b]\n[i]这是斜体文字[/i]\n[u]这是下划线文字[/u]\n[s]这是删除线文字[/s]\n[/quote]\n[b]💻 源码：[/b]\n[code][b]这是粗体文字[/b]\n[i]这是斜体文字[/i]\n[u]这是下划线文字[/u]\n[s]这是删除线文字[/s][/code]\n\n[b]▶ 【字体大小】[/b] [color=#888][size=2](通常范围为1-7，默认一般是2或3)[/size][/color]\n[quote]\n[size=1]这是1号字体（极小）[/size]\n[size=3]这是3号字体（中等）[/size]\n[size=5]这是5号字体（标题级放大）[/size]\n[size=7]这是7号字体（极限放大）[/size]\n[/quote]\n[b]💻 源码：[/b]\n[code][size=5]这是放大的文字[/size][/code]\n\n[b]▶ 【更换字体】[/b] [color=#888][size=2](需读者电脑安装了该字体才生效)[/size][/color]\n[quote]\n[font=楷体]这是楷体排版的效果[/font]\n[font=黑体]这是粗犷的黑体效果[/font]\n[/quote]\n[b]💻 源码：[/b]\n[code][font=楷体]这里写你的文字[/font][/code]\n\n[b]▶ 【对齐方式】[/b]\n[quote]\n[align=left]默认居左对齐[/align]\n[align=center]这是居中对齐（适合大标题）[/align]\n[align=right]这是居右对齐（适合署名）[/align]\n[/quote]\n[b]💻 源码：[/b]\n[code][align=center]居中的文字写在这里[/align][/code]\n\n[hr]\n[size=4][b]🎨 二、 常用基础单色字典[/b][/size]\n[color=#888][size=2]以下展示了最常用的基础高亮颜色。[/size][/color]\n\n[color=#FF0000]■[/color] [b]正红 (Red)[/b]\n[code][color=#FF0000]红色文字[/color][/code]\n\n[color=#FF7F00]■[/color] [b]亮橙 (Orange)[/b]\n[code][color=#FF7F00]橙色文字[/color][/code]\n\n[color=#FFD700]■[/color] [b]明黄 (Gold)[/b]\n[code][color=#FFD700]黄色文字[/color][/code]\n\n[color=#00FF00]■[/color] [b]纯绿 (Green)[/b]\n[code][color=#00FF00]绿色文字[/color][/code]\n\n[color=#00FFFF]■[/color] [b]青/青葱 (Cyan)[/b]\n[code][color=#00FFFF]青色文字[/color][/code]\n\n[color=#0000FF]■[/color] [b]纯蓝 (Blue)[/b]\n[code][color=#0000FF]蓝色文字[/color][/code]\n\n[color=#8A2BE2]■[/color] [b]紫罗兰 (Violet)[/b]\n[code][color=#8A2BE2]紫色文字[/color][/code]\n\n[color=#FF1493]■[/color] [b]深粉 (DeepPink)[/b]\n[code][color=#FF1493]粉色文字[/color][/code]\n\n[color=#888888]■[/color] [b]中灰 (Gray)[/b]\n[code][color=#888888]灰色文字[/color][/code]",
+        
+        "novel_table_width": "[size=5][b]✨ 表格限宽法 (防空行)[/b][/size]\n[hr]\n[size=3][color=#888][b]💡 核心提示：[/b]\n[color=#e3008c][b][align=center]、[table]、[tr]、[td][/b][/color] 这四个标签必须连在一起写在同一行！\n结尾的四个标签也必须写在同一行！中间敲回车会变成诡异的“幽灵空行”。[/color][/size]\n\n[b]▶ 【效果展示】[/b]\n[quote]\n[align=center][table=80%][tr][td]\n[b][size=4]二 遗物[/size][/b]\n\n[color=transparent]缩进[/color]那句轻柔却重若千钧的话，让法里骤然安静了下来。\n\n[color=transparent]缩进[/color]「比生命还要珍贵的那种重要……」\n[/td][/tr][/table][/align]\n[/quote]\n\n[b]💻 源码 (直接复制修改)：[/b]\n[code][align=center][table=80%][tr][td]\n[b][size=4]章节名称[/size][/b]\n\n[color=transparent]缩进[/color]你的正文段落第一段...\n\n[color=transparent]缩进[/color]你的正文段落第二段...\n[/td][/tr][/table][/align][/code]",
+
+        "novel_advice": "[size=5][b]✨ 小说“文案与说明”排版优化方案[/b][/size]\n[hr]\n\n[b]▶ 【方案 1：表单式居左 (最推荐) 效果展示】[/b]\n[quote]\n[align=center][size=4][b]索拉里斯星 - 法里x伊安[/b][/size]\n[size=2][color=#888]同人衍生 - 小说同人 - BL - 短篇 | 连载 - 科幻 - 克系[/color][/size][/align]\n\n为了毕生的科研梦想，法里将病弱的挚友独自留在了地球...\n\n[b]📢 阅读说明：[/b]\n[list=1]\n[*] 本文是同人文，沿用原著核心设定；\n[*] 感谢B站up主的解说。\n[/list]\n[/quote]\n\n[b]💻 方案 1 源码：[/b]\n[code][align=center][size=4][b]你的书名[/b][/size]\n[size=2][color=#888]你的标签们[/color][/size][/align]\n\n你的文案正文...\n\n[b]📢 阅读说明：[/b]\n[list=1]\n[*] 说明条款1\n[*] 说明条款2\n[/list][/code]\n\n[hr]\n[b]▶ 【方案 2：名片式排版 效果展示】[/b]\n[quote]\n[align=center][table=80%][tr][td=1,1,100%]\n[align=center][size=5][b][color=#333333]你的书名[/color][/b][/size]\n[size=2][color=#888]你的标签[/color][/size][/align]\n[hr]你的文案正文...\n[/td][/tr][tr][td=1,1,100%]\n[backcolor=#f8f8f8][b]📢 阅读说明：[/b]\n1、说明条款1\n2、说明条款2[/backcolor]\n[/td][/tr][/table][/align]\n[/quote]\n\n[b]💻 方案 2 源码：[/b]\n[code][align=center][table=80%][tr][td=1,1,100%]\n[align=center][size=5][b][color=#333333]你的书名[/color][/b][/size]\n[size=2][color=#888]你的标签[/color][/size][/align]\n[hr]你的文案正文...\n[/td][/tr][tr][td=1,1,100%]\n[backcolor=#f8f8f8][b]📢 阅读说明：[/b]\n1、说明条款1\n2、说明条款2[/backcolor]\n[/td][/tr][/table][/align][/code]",
+
+        "card_classic": "[size=5][b]✨ 经典名片 (简约版)[/b][/size]\n[hr]\n\n[b]▶ 【效果展示】[/b]\n[quote]\n[align=center][b][size=5][color=#FF6699]🌸 资 源 信 息 名 片 🌸[/color][/size][/b][/align]\n[hr]\n[b]名称：[/b] 某某高清画集\n[b]大小：[/b] 1.2 GB\n[b]链接：[/b] [url=https://example.com]点击下载（防吞处理）[/url]\n[/quote]\n[spoiler]\n[b]解压密码：[/b] 123456\n[/spoiler]\n\n[b]💻 源码：[/b]\n[code][quote]\n[align=center][b][size=5][color=#FF6699]🌸 可替换的标题 🌸[/color][/size][/b][/align]\n[hr]\n[b]名称：[/b] 你的资源名称\n[b]大小：[/b] 资源大小\n[b]链接：[/b] [url=你的链接]点击下载[/url]\n[/quote]\n[spoiler]\n[b]解压密码：[/b] 密码\n[/spoiler][/code]",
+
+        "card_table": "[size=5][b]✨ 图文名片 (左图右文)[/b][/size]\n[hr]\n\n[b]▶ 【效果展示】[/b]\n[quote]\n[table=100%][tr]\n  [td=1,1,30%]\n    [url=https://picsum.photos/id/237/800/1200][img=200]https://picsum.photos/id/237/800/1200[/img][/url]\n    [align=center][size=2][color=#888]（点击查看大图）[/color][/size][/align]\n  [/td]\n  [td=1,1,70%]\n    [size=5][b][color=#333333]尼尔：机械纪元 (NieR:Automata)[/color][/b][/size]\n    [hr]\n    [color=#666666][b]开发商：[/b][/color] PlatinumGames Inc.\n    [color=transparent]　[/color]\n    [b]💡 简介：[/b]\n    人类移居月球...\n    [b]📦 下载信息：[/b]\n    [url=https://example.com]点击下载游戏本体[/url]\n  [/td]\n[/tr][/table]\n[/quote]\n\n[b]💻 源码：[/b]\n[code][table=100%][tr]\n  [td=1,1,30%]\n    [url=这里填大图链接][img=200]这里填图链接[/img][/url]\n    [align=center][size=2][color=#888]（点击查看大图）[/color][/size][/align]\n  [/td]\n  [td=1,1,70%]\n    [size=5][b][color=#333333]你的资源标题[/color][/b][/size]\n    [hr]\n    [color=#666666][b]属性1：[/b][/color] 属性内容\n    [color=transparent]　[/color]\n    [b]💡 简介：[/b]\n    你的简介文字...\n    [b]📦 下载信息：[/b]\n    [url=下载链接]点击下载[/url]\n  [/td]\n[/tr][/table][/code]",
+
+        "fun_all": "[size=5][b]✨ 渐变色字与趣味排版大全[/b][/size]\n[hr]\n\n[size=4][b]🌈 一、 邻近渐变色组 (8款高级色系)[/b][/size]\n下面为你提供了8款由浅入深、同色系邻近渐变的绝美配色，每套均包含8个独立色号。\n\n[b]1. 日落晚霞 (暖橘粉)[/b]\n[quote]\n[b][color=#FF4E50]落[/color][color=#FF5C4A]日[/color][color=#FF6A44]晚[/color][color=#FF783E]霞[/color][color=#FF8638]的[/color][color=#FF9432]温[/color][color=#FFA22C]柔[/color][color=#FFB026]光[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#FF4E50]落[/color][color=#FF5C4A]日[/color][color=#FF6A44]晚[/color][color=#FF783E]霞[/color][color=#FF8638]的[/color][color=#FF9432]温[/color][color=#FFA22C]柔[/color][color=#FFB026]光[/color][/b][/code]\n\n[b]2. 深海幽蓝 (静谧冷色)[/b]\n[quote]\n[b][color=#001956]深[/color][color=#002E84]海[/color][color=#0043B2]幽[/color][color=#0058E0]蓝[/color][color=#006DFF]静[/color][color=#1A7DFF]谧[/color][color=#338DFF]之[/color][color=#4C9CFF]歌[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#001956]深[/color][color=#002E84]海[/color][color=#0043B2]幽[/color][color=#0058E0]蓝[/color][color=#006DFF]静[/color][color=#1A7DFF]谧[/color][color=#338DFF]之[/color][color=#4C9CFF]歌[/color][/b][/code]\n\n[b]3. 克系暗紫 (神秘深邃)[/b]\n[quote]\n[b][color=#2A0845]凝[/color][color=#3B115B]视[/color][color=#4C1A71]深[/color][color=#5D2387]渊[/color][color=#6E2C9D]的[/color][color=#7F35B3]恐[/color][color=#903EC9]惧[/color][color=#A147DF]感[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#2A0845]凝[/color][color=#3B115B]视[/color][color=#4C1A71]深[/color][color=#5D2387]渊[/color][color=#6E2C9D]的[/color][color=#7F35B3]恐[/color][color=#903EC9]惧[/color][color=#A147DF]感[/color][/b][/code]\n\n[b]4. 春日新绿 (生机盎然)[/b]\n[quote]\n[b][color=#134E5E]春[/color][color=#236D6C]日[/color][color=#338C7A]万[/color][color=#43AB88]物[/color][color=#53CA96]生[/color][color=#63E9A4]机[/color][color=#7EF2B2]盎[/color][color=#99FBC0]然[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#134E5E]春[/color][color=#236D6C]日[/color][color=#338C7A]万[/color][color=#43AB88]物[/color][color=#53CA96]生[/color][color=#63E9A4]机[/color][color=#7EF2B2]盎[/color][color=#99FBC0]然[/color][/b][/code]\n\n[b]5. 极光青绿 (晶莹剔透)[/b]\n[quote]\n[b][color=#00F2FE]冰[/color][color=#0BD9EE]雪[/color][color=#16C0DE]极[/color][color=#21A7CE]光[/color][color=#2C8EBE]的[/color][color=#3775AE]绚[/color][color=#425C9E]烂[/color][color=#4FACFE]影[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#00F2FE]冰[/color][color=#0BD9EE]雪[/color][color=#16C0DE]极[/color][color=#21A7CE]光[/color][color=#2C8EBE]的[/color][color=#3775AE]绚[/color][color=#425C9E]烂[/color][color=#4FACFE]影[/color][/b][/code]\n\n[b]6. 炽热熔岩 (燃烧警示)[/b]\n[quote]\n[b][color=#FF0844]炽[/color][color=#FF3134]热[/color][color=#FF5A24]熔[/color][color=#FF8314]岩[/color][color=#FFAC04]燃[/color][color=#FAD600]烧[/color][color=#F4E900]殆[/color][color=#EFFC00]尽[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#FF0844]炽[/color][color=#FF3134]热[/color][color=#FF5A24]熔[/color][color=#FF8314]岩[/color][color=#FFAC04]燃[/color][color=#FAD600]烧[/color][color=#F4E900]殆[/color][color=#EFFC00]尽[/color][/b][/code]\n\n[b]7. 玫瑰蜜桃 (少女甜美)[/b]\n[quote]\n[b][color=#FF9A9E]玫[/color][color=#FF899C]瑰[/color][color=#FF789A]蜜[/color][color=#FF6798]桃[/color][color=#FF5696]少[/color][color=#FF4594]女[/color][color=#FF3492]甜[/color][color=#FF2390]心[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#FF9A9E]玫[/color][color=#FF899C]瑰[/color][color=#FF789A]蜜[/color][color=#FF6798]桃[/color][color=#FF5696]少[/color][color=#FF4594]女[/color][color=#FF3492]甜[/color][color=#FF2390]心[/color][/b][/code]\n\n[b]8. 秋日英伦 (复古焦糖)[/b]\n[quote]\n[b][color=#8E0E00]秋[/color][color=#A01F04]日[/color][color=#B23008]英[/color][color=#C4410C]伦[/color][color=#D65210]复[/color][color=#E86314]古[/color][color=#FA7418]焦[/color][color=#FF851C]糖[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#8E0E00]秋[/color][color=#A01F04]日[/color][color=#B23008]英[/color][color=#C4410C]伦[/color][color=#D65210]复[/color][color=#E86314]古[/color][color=#FA7418]焦[/color][color=#FF851C]糖[/color][/b][/code]\n\n[hr]\n[size=4][b]🌟 二、 其他跨度渐变组[/b][/size]\n\n[b]1. 经典彩虹 (跨度全色系)[/b]\n[quote]\n[b][color=#FF0000]彩[/color][color=#FF7F00]虹[/color][color=#FFFF00]横[/color][color=#00FF00]跨[/color][color=#00FFFF]整[/color][color=#0000FF]片[/color][color=#8B00FF]天[/color][color=#FF00FF]空[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#FF0000]彩[/color][color=#FF7F00]虹[/color][color=#FFFF00]横[/color][color=#00FF00]跨[/color][color=#00FFFF]整[/color][color=#0000FF]片[/color][color=#8B00FF]天[/color][color=#FF00FF]空[/color][/b][/code]\n\n[b]2. 赛博霓虹 (青洋红跳跃)[/b]\n[quote]\n[b][color=#00FFFF]赛[/color][color=#0DF2FF]博[/color][color=#1AE5FF]朋[/color][color=#27D8FF]克[/color][color=#D122FF]霓[/color][color=#DD11FF]虹[/color][color=#E900FF]闪[/color][color=#FF00FF]烁[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#00FFFF]赛[/color][color=#0DF2FF]博[/color][color=#1AE5FF]朋[/color][color=#27D8FF]克[/color][color=#D122FF]霓[/color][color=#DD11FF]虹[/color][color=#E900FF]闪[/color][color=#FF00FF]烁[/color][/b][/code]\n\n[b]3. 马卡龙色 (低饱和粉彩)[/b]\n[quote]\n[b][color=#FFB3BA]轻[/color][color=#FFDFBA]柔[/color][color=#FFFFBA]马[/color][color=#BAFFC9]卡[/color][color=#BAE1FF]龙[/color][color=#DAB3FF]小[/color][color=#FFC9DE]甜[/color][color=#FFD9E8]心[/color][/b]\n[/quote]\n[b]💻 源码：[/b]\n[code][b][color=#FFB3BA]轻[/color][color=#FFDFBA]柔[/color][color=#FFFFBA]马[/color][color=#BAFFC9]卡[/color][color=#BAE1FF]龙[/color][color=#DAB3FF]小[/color][color=#FFC9DE]甜[/color][color=#FFD9E8]心[/color][/b][/code]\n\n[hr]\n[size=4][b]🛠️ 三、 实用互动小技巧[/b][/size]\n\n[b]1. 赛博朋克风高亮[/b]\n[quote]\n[align=center][backcolor=#222222][color=#00FFFF][b] ◢◤ 赛 博 朋 克 2 0 7 7  资 源 ◢◤ [/b][/color][/backcolor][/align]\n[/quote]\n[b]💻 源码：[/b]\n[code][align=center][backcolor=#222222][color=#00FFFF][b] ◢◤ 可替换的标题文字 ◢◤ [/b][/color][/backcolor][/align][/code]\n\n[b]2. 刮刮乐 (隐藏文字)[/b]\n[quote]\n[color=#000000][backcolor=#000000]这是一段刮刮乐，用鼠标左键选中才能看清！[/backcolor][/color]\n[/quote]\n[b]💻 源码：[/b]\n[code][color=#000000][backcolor=#000000]这里写你需要隐藏的文字[/backcolor][/color][/code]\n\n[b]3. 注音 (Ruby) 吐槽[/b]\n[quote]\n[size=3]欢迎来到[ruby=er ci yuan]二次元[/ruby]的世界！[/size]\n[/quote]\n[b]💻 源码：[/b]\n[code][ruby=上方的小注音]下方的大字正文[/ruby][/code]\n\n[b]4. 伪进度条与评分[/b]\n[quote]\n收集进度：[color=#4CAF50]████████[/color][color=#E0E0E0]██[/color] 80%\n主观评价：[color=#FFD700]★★★★[/color][color=#E0E0E0]★[/color] 4.0\n[/quote]\n[b]💻 源码：[/b]\n[code]收集进度：[color=#4CAF50]████████[/color][color=#E0E0E0]██[/color] 80%\n主观评价：[color=#FFD700]★★★★[/color][color=#E0E0E0]★[/color] 4.0[/code]"
+    };
+
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+
+    function parse(text) {
+        if (!text) return '';
+        let h = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        let codes = [];
+        h = h.replace(/\[code\]([\s\S]*?)\[\/code\]/gi, function(match, p1) {
+            codes.push(p1);
+            return '%%%CODE_BLOCK_' + (codes.length - 1) + '%%%';
+        });
+        
+        h = h.replace(/\[\*\]([^\n]*)/g, '<li>$1</li>');
+        const r = [
+            { re: /\[b\]([\s\S]*?)\[\/b\]/gi, to: '<strong>$1</strong>' },
+            { re: /\[i\]([\s\S]*?)\[\/i\]/gi, to: '<em>$1</em>' },
+            { re: /\[u\]([\s\S]*?)\[\/u\]/gi, to: '<u>$1</u>' },
+            { re: /\[s\]([\s\S]*?)\[\/s\]/gi, to: '<del>$1</del>' },
+            { re: /\[color=(.+?)\]([\s\S]*?)\[\/color\]/gi, to: '<span style="color:$1">$2</span>' },
+            { re: /\[backcolor=(.+?)\]([\s\S]*?)\[\/backcolor\]/gi, to: '<span style="background-color:$1">$2</span>' },
+            { re: /\[size=(\d+)\]([\s\S]*?)\[\/size\]/gi, to: (m, s, c) => `<span style="font-size:${parseInt(s)*4 + 10}px">${c}</span>` },
+            { re: /\[font=(.+?)\]([\s\S]*?)\[\/font\]/gi, to: '<span style="font-family:\'$1\'">$2</span>' },
+            { re: /\[align=(left|center|right)\]([\s\S]*?)\[\/align\]/gi, to: '<div style="text-align:$1">$2</div>' },
+            { re: /\[url=(.+?)\]([\s\S]*?)\[\/url\]/gi, to: '<a href="$1" target="_blank" style="color:#0078d4;text-decoration:none;">$2</a>' },
+            { re: /\[img\](.*?)\[\/img\]/gi, to: '<img src="$1"/>' },
+            { re: /\[img=(\d+)\](.*?)\[\/img\]/gi, to: '<img src="$2" width="$1"/>' },
+            { re: /\[img=(\d+),(\d+)\](.*?)\[\/img\]/gi, to: '<img src="$3" width="$1" height="$2"/>' },
+            { re: /\[quote\]([\s\S]*?)\[\/quote\]/gi, to: '<blockquote>$1</blockquote>' },
+            { re: /\[hr\]/gi, to: '<hr style="border:0; border-top:1px dashed #ccc; margin:15px 0;"/>' },
+            { re: /\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi, to: '<details><summary>点击展开隐藏内容</summary><div style="padding-top:10px;">$1</div></details>' },
+            { re: /\[ruby=(.+?)\]([\s\S]*?)\[\/ruby\]/gi, to: '<ruby>$2<rt style="font-size:0.7em; color:#888;">$1</rt></ruby>' },
+            { re: /\[list\]([\s\S]*?)\[\/list\]/gi, to: '<ul style="margin:10px 0; padding-left:20px;">$1</ul>' },
+            { re: /\[list=1\]([\s\S]*?)\[\/list\]/gi, to: '<ol style="margin:10px 0; padding-left:20px;">$1</ol>' },
+            { re: /\[table.*?\]([\s\S]*?)\[\/table\]/gi, to: '<table style="width:100%; border-collapse:collapse; margin:10px 0;">$1</table>' },
+            { re: /\[tr\]([\s\S]*?)\[\/tr\]/gi, to: '<tr>$1</tr>' },
+            { re: /\[td.*?\]([\s\S]*?)\[\/td\]/gi, to: '<td style="vertical-align:top; padding:10px;">$1</td>' }
+        ];
+
+        for(let i=0; i<3; i++) r.forEach(rule => h = h.replace(rule.re, rule.to));
+        h = h.replace(/\n/g, '<br/>');
+        
+        h = h.replace(/%%%CODE_BLOCK_(\d+)%%%/g, function(match, index) {
+            let rawCode = codes[index];
+            let encodedCode = encodeURIComponent(rawCode);
+            let innerCode = rawCode.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+            
+            return `<div class="code-wrapper">
+                        <button class="copy-btn" onclick="copyCode(this, '${encodedCode}')">复制源码</button>
+                        <div class="code-block">${innerCode}</div>
+                    </div>`;
+        });
+
+        return h;
+    }
+
+    function update() { 
+        if(editor && preview) {
+            preview.innerHTML = parse(editor.value); 
+        }
+    }
+    
+    function loadEx(k) { 
+        if(editor && ex[k]) {
+            editor.value = ex[k]; 
+            update(); 
+        }
+    }
+    
+    if(editor) {
+        editor.addEventListener('input', update);
+        loadEx('basic'); 
+    }
+</script>
+</body>
+</html>
